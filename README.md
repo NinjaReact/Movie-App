@@ -12,9 +12,9 @@
 
 **Создаем папку layout :**
 
-*Header.jsx
-*Main.jsx
-\*Footer.jsx
+- Header.jsx
+- Main.jsx
+- Footer.jsx
 
 ---
 
