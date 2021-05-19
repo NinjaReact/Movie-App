@@ -2,9 +2,9 @@
 
 Удалить все файлы из папки src , кроме :
 
-*App.js;
-*index.js
-\*index.css
+* App.js;
+* index.js
+* index.css
 
 **В index.html после title добавить cdn на materializecss.com**
 
@@ -70,6 +70,7 @@ export  {Footer}
 ```javascript
 import React from 'react'
 import {Movies} from '../components/Movies'
+import {Prealoader} from '../components/Preloader'
 
 class Main extends React.Component{
     state = {
@@ -90,7 +91,7 @@ class Main extends React.Component{
                     movies.length ? (
                         <Movies movies={movies} />   
                     ) :
-                        <h5>Loading..</h5>
+                        <Prealoader />
                 }
             </div>
     }
@@ -99,6 +100,17 @@ class Main extends React.Component{
 export {Main}
 ```
 *Что и как работает :*
+
+**Создаем компонент Preloader**
+```javascript
+function Prealoader(){
+    return <div className="progress">
+    <div className="indeterminate"></div>
+</div>
+}
+export {Prealoader}
+```
+
 
 **Подключаем реакт и компонент Movies куда будем передавать полученный state ↓**
 ```javascript
@@ -206,7 +218,7 @@ export {Movie}
     } = props
 ```
 
-**заполняем карточку взятую c материла , полученными данными (данные 1 карточки , метод map в Movies вызывает функцию Movie столько раз , сколько элементов в state) ↓**
+**заполняем карточку взятую c materialize css , полученными данными (данные 1 карточки , метод map в Movies вызывает функцию Movie столько раз , сколько элементов в state) ↓**
 
 ```javascript
     return <div id={id} className="card movie">
@@ -226,3 +238,192 @@ export {Movie}
 ```
 
 ---
+
+**ПОИСК**
+
+**Создаем компонент Search , скопированный из materialize css**
+*Делаем классовый компонент , так как мы делаем поиск и работаем с state , нам нужны классовые компоненты*
+```javascript
+import React from 'react'
+
+class Search extends React.Component {
+
+    state ={
+        search : ''
+    }
+    render(){
+        return (
+            <div className="row"> 
+                <div className="input-field">
+                    <input 
+                        placeholder='search'  
+                        type="search" 
+                        className="validate" 
+                        value={this.state.search}
+                        onChange={(e) => this.setState({search : e.target.value})}
+                    />
+                </div>
+            </div>
+        )   
+    }
+}
+
+export {Search} 
+```
+**onChange - делает колбек который вносит все что есть в инпуте в state.search**
+**Value = в value инпута будет записываться то что есть в state.search**
+
+**просто добавляем поиск в main↓**
+```javascript
+import React from 'react'
+import {Movies} from '../components/Movies'
+import {Prealoader} from '../components/Preloader'
+import {Search} from '../components/Search'
+
+class Main extends React.Component{
+    state = {
+        movies : []
+    }
+    
+    componentDidMount(){
+        fetch('http://www.omdbapi.com/?apikey=d7b16aad&s=matrix')
+            .then(response => response.json())
+            .then(data => this.setState({movies : data.Search}))
+    }
+
+    render(){
+        const {movies} =this.state
+
+        return <div className='container content'>
+            <Search />
+                {
+                    movies.length ? (
+                        <Movies movies={movies} />   
+                    ) :
+                        <Prealoader />
+                }
+            </div>
+    }
+}
+
+export {Main}
+```
+
+**Для запроса на сервер с данными из seacrh мы не можем делать функцию в компоненте searh.jsx , так как он не может влиять прям на state компонента который его вызывает , нам нужно сделать функцию В Main.jsx и спустить ее в Search.jsx**
+
+**main.jsx :**
+
+
+```javascript
+import React from 'react'
+import {Movies} from '../components/Movies'
+import {Prealoader} from '../components/Preloader'
+import {Search} from '../components/Search'
+
+class Main extends React.Component{
+    state = {
+        movies : []
+    }
+    
+    componentDidMount(){
+        fetch('http://www.omdbapi.com/?apikey=d7b16aad&s=matrix')
+            .then(response => response.json())
+            .then(data => this.setState({movies : data.Search}))
+    }
+
+    searchMovies = str => {
+        fetch(`http://www.omdbapi.com/?apikey=d7b16aad&s=${str}`)
+        .then(response => response.json())
+        .then(data => this.setState({movies : data.Search}))
+    }
+
+    render(){
+        const {movies} =this.state
+
+        return <div className='container content'>
+            <Search searchMovies = {this.searchMovies}/>
+                {
+                    movies.length ? (
+                        <Movies movies={movies} />   
+                    ) :
+                        <Prealoader />
+                }
+            </div>
+    }
+}
+
+export {Main}
+```
+
+**добавили функцию searchMovies  для поиска**
+```javascript
+    searchMovies = str => {
+        fetch(`http://www.omdbapi.com/?apikey=d7b16aad&s=${str}`)
+        .then(response => response.json())
+        .then(data => this.setState({movies : data.Search}))
+    }
+```
+**в render при вызове компонента Search , передаем в него нашу функцию**
+```javascript
+    <Search searchMovies = {this.searchMovies}/>
+```
+
+**Search.jsx**
+```javascript
+import React from 'react'
+
+class Search extends React.Component {
+
+    state ={
+        search : ''
+    }
+
+    handleKey = event => {
+        if(event.key === 'Enter'){
+            this.props.searchMovies(this.state.search)
+        }
+    }
+    render(){
+        return (
+            <div className="row"> 
+                <div className="input-field">
+                    <input 
+                        placeholder='search'  
+                        type="search" 
+                        className="validate" 
+                        value={this.state.search}
+                        onChange={(e) => this.setState({search : e.target.value})}
+                        onKeyDown = {this.handleKey}
+                    />
+                    <button className = 'btn search-btn'onClick={() =>this.props.searchMovies(this.state.search)}>Search</button>
+                </div>
+            </div>
+        )   
+    }
+}
+```
+
+**функция при клике на enter запускате функцию поиска переданную из main.jsx**
+```javascript
+    handleKey = event => {
+        if(event.key === 'Enter'){
+            this.props.searchMovies(this.state.search)
+        }
+    }
+```
+
+**В инпут добавили обработчик , чтобы при нажатии особой кнопки (меняет state)**
+```javascript
+    <input 
+        value={this.state.search}
+        onChange={(e) => this.setState({search : e.target.value})}
+        onKeyDown = {this.handleKey}
+    />
+```
+**добавили button , который из за обработчика onClick , при нажатии делает тоже самое что и нажатие на enter**
+```javascript
+    <button className = 'btn search-btn'onClick={() =>this.props.searchMovies(this.state.search)}>Search</button>
+```
+
+---
+**Валидация**
