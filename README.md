@@ -1,4 +1,4 @@
-#Началаьная подготовка :
+# Началаьная подготовка :
 
 Удалить все файлы из папки src , кроме :
 
@@ -426,4 +426,211 @@ class Search extends React.Component {
 ```
 
 ---
-**Валидация**
+**Валидация (разделение на фильмы и сериалы)**
+
+**Изменить функцию searchMovies()  в main.js**
+*Функция теперь принимает поле type с параметром по умолчанию 'all' , если эта функция принимает type != all, то к запросу на сервер добавляется '&type' с пришедшим типом*
+```javascript
+    searchMovies = (str , type = 'all' ) => {
+        fetch(`http://www.omdbapi.com/?apikey=d7b16aad&s=${str}${type !== 'all' ? `&type=${type}` : ''}`)
+        .then(response => response.json())
+        .then(data => this.setState({movies : data.Search}))
+    }
+```
+
+**Изменение компоненты Search.jsx**
+
+*добавили в state ключ type , с значением all*
+
+```javascript
+import React from 'react';
+
+class Search extends React.Component {
+  state = {
+    search: '',
+    type: 'all',
+  };
+
+  handleKey = (event) => {
+    if (event.key === 'Enter') {
+      this.props.searchMovies(this.state.search , this.state.type );
+    }
+  };
+
+  handleFilter = (event) => {
+    this.setState(()=> ({ type: event.target.dataset.type }) , ()=>{
+        this.props.searchMovies(this.state.search , this.state.type );
+    });    
+  };
+
+  render() {
+    return (
+      <div className="row">
+        <div className="input-field">
+          <input
+            placeholder="search"
+            type="search"
+            className="validate"
+            value={this.state.search}
+            onChange={(e) => this.setState({ search: e.target.value })}
+            onKeyDown={this.handleKey}
+          />
+          <button
+            className="btn search-btn"
+            onClick={() => this.props.searchMovies(this.state.search , this.state.type)}
+          >
+            Search
+          </button> 
+          <div>
+            <label>
+              <input
+                className="with-gap"
+                name="type"
+                type="radio"
+                data-type="all"
+                onChange={this.handleFilter}
+                checked={this.state.type ==='all'}
+              />
+              <span>ALL</span>
+            </label>
+            <label>
+              <input
+                className="with-gap"
+                name="type"
+                type="radio"
+                data-type="movie"
+                onChange={this.handleFilter}
+                checked={this.state.type ==='movie'}
+              />
+              <span>Movies only</span>
+            </label>
+            <label>
+              <input
+                className="with-gap"
+                name="type"
+                type="radio"
+                data-type="series"
+                onChange={this.handleFilter}
+                checked={this.state.type ==='series'}
+              />
+              <span>Series only</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+export { Search };
+
+```
+
+**функция handleKey при вызове функции searchMovies , она передает в нее значение type из state↓**
+
+```javascript
+  handleKey = (event) => {
+    if (event.key === 'Enter') {
+      this.props.searchMovies(this.state.search , this.state.type );
+    }
+  };
+```
+
+**добавили функцию handleFilter в которой есть 2 callBack :**
+* принимает value активного radioBtn
+* вызывает функцию searchMovies 
+```javascript
+  handleFilter = (event) => {
+    this.setState(()=> ({ type: event.target.dataset.type }) , ()=>{
+        this.props.searchMovies(this.state.search , this.state.type );
+    });    
+  };
+```
+
+**radioBtn**
+
+* data-type="series" -  хранится название типа который примит 1 колбек в функции handleFilter (()=> ({ type: event.target.dataset.type }))
+* onChange={this.handleFilter} - обработчик запускающий функцию
+* checked={this.state.type ==='series'} - сравнивает значение в state
+
+```javascript
+ <label>
+    <input
+        className="with-gap"
+        name="type"
+        type="radio"
+        data-type="series"
+        onChange={this.handleFilter}
+        checked={this.state.type ==='series'}
+        />
+    <span>Series only</span>
+</label>
+```
+
+---
+
+**Обработка неудачного поиска**
+
+## main.js :
+
+*Добавили в state ключ loading*
+```javascript
+    state = {
+        movies : [],
+        loading : true
+    }
+```
+
+**Если значение loading = false , то идет отработка компонента movies , иначе сработает компонент Prealoader **
+```javascript
+    render(){
+        const {movies , loading} = this.state
+
+        return <div className='container content'>
+            <Search searchMovies = {this.searchMovies}/>
+                {
+                    !loading ? (
+                        <Movies movies={movies} />   
+                    ) :
+                        <Prealoader />
+                }
+            </div>
+    }
+```
+**componentDidMount при запросе к api , помима добавления в массив всех фильмов , меняет значение loading на false**
+
+```javascript
+    componentDidMount(){
+        fetch('http://www.omdbapi.com/?apikey=d7b16aad&s=matrix')
+            .then(response => response.json())
+            .then(data => this.setState({movies : data.Search , loading :false}))
+    }
+```
+
+**Функция до запроса меняет значение loading на true(сработает прелоадер) и в конце  меняет значение loading на false(сработает movies)**
+```javascript
+    searchMovies = (str , type = 'all' ) => {
+        this.setState({loading :true})
+        fetch(`http://www.omdbapi.com/?apikey=d7b16aad&s=${str}${type !== 'all' ? `&type=${type}` : ''}`)
+        .then(response => response.json())
+        .then(data => this.setState({movies : data.Search , loading :false}))
+    }
+```
+
+## Movies.js
+
+**делаем параметр по умолчание (movies = [] (пустой массив)) , если длинна массива больше 0 , тогда запускай map по movies , иначе пиши nothing found**
+```javascript
+import {Movie} from './Movie'
+
+function Movies (props){
+    const {movies = []} = props
+
+    return <div className='movies'>
+        {movies.length ? movies.map(movie => {
+            return <Movie key={movie.imdbID} {...movie}/>
+        }) : (<h4>nothing found</h4>)}
+    </div>
+}
+export {Movies}
+```
